@@ -19,32 +19,60 @@
 #include <unistd.h>
 #include <assert.h>
 
+
+#include <sys/types.h>
+#include <pwd.h>
+#include <uuid/uuid.h>
+
+//struct passwd {
+//	char    *pw_name;       /* user name */
+//	char    *pw_passwd;     /* encrypted password */
+//	uid_t   pw_uid;         /* user uid */
+//	gid_t   pw_gid;         /* user gid */
+//	time_t  pw_change;      /* password change time */
+//	char    *pw_class;      /* user access class */
+//	char    *pw_gecos;      /* Honeywell login info */
+//	char    *pw_dir;        /* home directory */
+//	char    *pw_shell;      /* default shell */
+//	time_t  pw_expire;      /* account expiration */
+//	int     pw_fields;      /* internal: fields filled in */
+//};
+
+
 static const char *hello_str = "Hello World!\n";
 static const char *hello_name = "hello";
 
 static int hello_stat(fuse_ino_t ino, struct stat *stbuf)
 {
 	stbuf->st_ino = ino;
+	struct passwd * pwd = getpwent();
+	uid_t uid = pwd->pw_uid;
+	gid_t gid = pwd->pw_gid;
+
 	switch (ino) {
-	case 1:
-		stbuf->st_mode = S_IFDIR | 0755;
-		stbuf->st_nlink = 2;
-		break;
-
-	case 2:
-		stbuf->st_mode = S_IFREG | 0444;
-		stbuf->st_nlink = 1;
-		stbuf->st_size = strlen(hello_str);
-		break;
-
-	default:
-		return -1;
+		case 1:
+			stbuf->st_mode = S_IFDIR | 0777;
+			stbuf->st_nlink = 2;
+			stbuf->st_uid = (__uint16_t)uid;
+			stbuf->st_gid = (__uint16_t)gid;
+			break;
+			
+		case 2:
+			stbuf->st_mode = S_IFREG | 0777;
+			stbuf->st_nlink = 1;
+			stbuf->st_flags = 0x00000002;
+			stbuf->st_size = strlen(hello_str);
+			stbuf->st_uid = (__uint16_t)uid;
+			stbuf->st_gid = (__uint16_t)gid;
+			break;
+			
+		default:
+			return -1;
 	}
 	return 0;
 }
 
-static void hello_ll_getattr(fuse_req_t req, fuse_ino_t ino,
-			     struct fuse_file_info *fi)
+static void hello_ll_getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 {
 	struct stat stbuf;
 
@@ -52,9 +80,13 @@ static void hello_ll_getattr(fuse_req_t req, fuse_ino_t ino,
 
 	memset(&stbuf, 0, sizeof(stbuf));
 	if (hello_stat(ino, &stbuf) == -1)
+	{
 		fuse_reply_err(req, ENOENT);
+	}
 	else
+	{
 		fuse_reply_attr(req, &stbuf, 1.0);
+	}
 }
 
 static void hello_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
@@ -93,24 +125,20 @@ static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
 	b->p = newp;
 	memset(&stbuf, 0, sizeof(stbuf));
 	stbuf.st_ino = ino;
-	fuse_add_direntry(req, b->p + oldsize, b->size - oldsize, name, &stbuf,
-			  b->size);
+	fuse_add_direntry(req, b->p + oldsize, b->size - oldsize, name, &stbuf, b->size);
 }
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
-static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize,
-			     off_t off, size_t maxsize)
+static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize, off_t off, size_t maxsize)
 {
 	if (off < bufsize)
-		return fuse_reply_buf(req, buf + off,
-				      min(bufsize - off, maxsize));
+		return fuse_reply_buf(req, buf + off, min(bufsize - off, maxsize));
 	else
 		return fuse_reply_buf(req, NULL, 0);
 }
 
-static void hello_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
-			     off_t off, struct fuse_file_info *fi)
+static void hello_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fuse_file_info *fi)
 {
 	(void) fi;
 
@@ -128,8 +156,7 @@ static void hello_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 	}
 }
 
-static void hello_ll_open(fuse_req_t req, fuse_ino_t ino,
-			  struct fuse_file_info *fi)
+static void hello_ll_open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 {
 	if (ino != 2)
 		fuse_reply_err(req, EISDIR);
@@ -139,8 +166,7 @@ static void hello_ll_open(fuse_req_t req, fuse_ino_t ino,
 		fuse_reply_open(req, fi);
 }
 
-static void hello_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size,
-			  off_t off, struct fuse_file_info *fi)
+static void hello_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fuse_file_info *fi)
 {
 	(void) fi;
 
@@ -163,14 +189,15 @@ int main(int argc, char *argv[])
 	char *mountpoint;
 	int err = -1;
 
-	if (fuse_parse_cmdline(&args, &mountpoint, NULL, NULL) != -1 &&
-	    (ch = fuse_mount(mountpoint, &args)) != NULL) {
+	if (fuse_parse_cmdline(&args, &mountpoint, NULL, NULL) != -1 && (ch = fuse_mount(mountpoint, &args)) != NULL)
+	{
 		struct fuse_session *se;
-
-		se = fuse_lowlevel_new(&args, &hello_ll_oper,
-				       sizeof(hello_ll_oper), NULL);
-		if (se != NULL) {
-			if (fuse_set_signal_handlers(se) != -1) {
+		se = fuse_lowlevel_new(&args, &hello_ll_oper, sizeof(hello_ll_oper), NULL);
+		
+		if (se != NULL)
+		{
+			if (fuse_set_signal_handlers(se) != -1)
+			{
 				fuse_session_add_chan(se, ch);
 				err = fuse_session_loop(se);
 				fuse_remove_signal_handlers(se);
@@ -183,4 +210,4 @@ int main(int argc, char *argv[])
 	fuse_opt_free_args(&args);
 
 	return err ? 1 : 0;
-}
+#endif

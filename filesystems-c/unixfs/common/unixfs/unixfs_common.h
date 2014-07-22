@@ -40,6 +40,7 @@ static int           unixfs_internal_readlink(ino_t ino,
                                               char path[UNIXFS_MAXPATHLEN]);
 static int           unixfs_internal_statvfs(struct statvfs* svb);
 
+
 /* To be used in file-system-specific code. */
 
 #define DECL_UNIXFS(fsname, sufx)                     \

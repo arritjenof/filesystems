@@ -1,25 +1,30 @@
-TARGETS = loopback
-
+TARGETS = loopback loopback.o hashtable.o #logfile.o
 CC ?= gcc
-CFLAGS_OSXFUSE = -D_FILE_OFFSET_BITS=64 -I/usr/local/include/osxfuse/fuse
-CFLAGS_EXTRA = -Wall -g $(CFLAGS)
-LIBS = -losxfuse
+CFLAGS_OSXFUSE = -mmacosx-version-min=10.7 -D_FILE_OFFSET_BITS=64 -I/usr/local/include/osxfuse/fuse
+CFLAGS_EXTRA = -g $(CFLAGS)
+#LIBS = -losxfuse
+LDFLAGS=-L/usr/local/lib -losxfuse
 
-.c:
-	$(CC) $(CFLAGS_OSXFUSE) $(CFLAGS_EXTRA) -o $@ $< $(LIBS)
+#-Wall
+#.c: $(CC) -c $(CFLAGS_OSXFUSE) $(CFLAGS_EXTRA) -o $@ $< $(LIBS)
 
 all: info
 
-loopback: loopback.c
+loopback.o: loopback.c
+	$(CC) -c $(CFLAGS_OSXFUSE) $(CFLAGS_EXTRA) -o $@ $<
+
+hashtable.o: hashtable.c hashtable.h
+	$(CC) -c $(CFLAGS_OSXFUSE) $(CFLAGS_EXTRA) -o $@ $<
+
+#logfile.o: logfile.c logfile.h
+#	$(CC) -c $(CFLAGS_OSXFUSE) $(CFLAGS_EXTRA) -o $@ $<
+
+loopback: loopback.o hashtable.o
+	$(CC) $(CFLAGS_OSXFUSE) $(CFLAGS_EXTRA) -o $@ $^ $(LDFLAGS)
 
 info: $(TARGETS)
 	@echo
-	@echo Compiled. The following is a typical way to run the loopback file system. In
-	@echo this example, /tmp/dir is an existing directory whose contents will become
-	@echo available in the existing mount point /Volumes/loop:
-	@echo
-	@echo "sudo ./loopback /Volumes/loop -omodules=threadid:subdir,subdir=/tmp/dir -oallow_other,native_xattr,volname=LoopbackFS"
-	@echo
+	@echo DONE!
 
 clean:
 	rm -f $(TARGETS) *.o

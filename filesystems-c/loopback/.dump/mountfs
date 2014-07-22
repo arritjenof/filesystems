@@ -1,0 +1,31 @@
+#!/bin/sh
+
+curpth=$(dirname $PWD)
+curdir=$(basename $PWD)
+basepath="${curpth}/${curdir}"
+
+mntpnt="$1"
+subdir="$2"
+
+lbbin="${basepath}/loopback"
+
+if [ -z $mntpnt ]; then
+	echo "mount point mandatory. empty mountpoint given '$mntpnt'!"
+	exit 1
+fi
+
+mkdir -p "${mntpnt}"
+
+if [ "$?" -eq "1" ]; then
+	echo "Problem creating mountpoint $mntpnt !"
+	exit 1
+fi
+
+if [ ! -d "${subdir}" ]; then
+	echo "The target sub-directory $subdir to be remounted at '${mntpnt}' does not exist or is not accessable!"
+	exit 1
+fi
+
+
+$lbbin "${mntpnt}" -d -omodules=threadid:subdir,volname=Capture,allow_other,iosize=4096,subdir="${subdir}"
+

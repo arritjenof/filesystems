@@ -32,8 +32,9 @@ struct unixfs_ops;
 
 /* Our encapsulation of an Ancient Unix file system instance. */
 
-struct unixfs {
-    struct      unixfs_ops *ops;       /* file system operations */
+struct unixfs
+{
+	struct      unixfs_ops *ops;       /* file system operations */
     void*       filsys;                /* in-core super block */
     uint32_t    flags;                 /* directives/miscellaneous flags */
     fs_endian_t fsendian;
@@ -47,18 +48,18 @@ struct unixfs {
 
 /* Our encapsulation of an Ancient Unix directory entry. */
 
-struct unixfs_direntry {
-    ino_t ino __attribute__((aligned(8)));
-    char  name[UNIXFS_MAXNAMLEN + 1];
+struct unixfs_direntry
+{
+	ino_t	ino __attribute__((aligned(8)));
+	char	name[UNIXFS_MAXNAMLEN + 1];
 };
 
 #define UNIXFS_DIRBUFSIZ 8192
 
-struct unixfs_dirbuf {
-    struct flags {
-       uint32_t initialized;
-    } flags;
-    char data[UNIXFS_DIRBUFSIZ];
+struct unixfs_dirbuf
+{
+	struct flags { uint32_t initialized; } flags;
+	char data[UNIXFS_DIRBUFSIZ];
 };
 
 /* Interface to Ancient Unix file system internals. */
